@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View, LayoutChangeEvent } from 'react-native'
-import React, {Dispatch, SetStateAction, useCallback, useEffect, useState} from 'react'
-import Piece, {PieceKey} from '../components/Piece';
-import { playMoveSound } from '../utils/sound';
+import { View, LayoutChangeEvent } from 'react-native'
+import React, { useCallback, useEffect, useState} from 'react'
+import  {PieceKey} from '../components/Piece';
+import styles from '../utils/styles';
+import GameBoard from '../components/GameBoard';
 
 
 const default_FEN : string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -33,6 +34,7 @@ const GameScreen = () => {
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
     const [childHeights, setChildHeights] = useState<number[]>([]);
     const [boardDimension, setBoardDimension] = useState(0);
+    const [whiteTurn, setWhiteTurn] = useState(true); // true means white turn, false is black turn
 
     const onScreenLayout = useCallback((event: LayoutChangeEvent) => {
         const { width, height } = event.nativeEvent.layout;
@@ -58,7 +60,7 @@ const GameScreen = () => {
         <View style={styles.screen} onLayout={onScreenLayout}>
             <GameHeader onLayoutChange={onChildLayout(0)}/>
             <PlayerOneInfo onLayoutChange={onChildLayout(1)}/>
-            <GameBoard dimension={boardDimension} positions={boardLayout} onMove={setBoardLayout}/>
+            <GameBoard dimension={boardDimension} positions={boardLayout} onMove={setBoardLayout} turn={whiteTurn} changeTurn={setWhiteTurn}/>
             <PlayerOneInfo onLayoutChange={onChildLayout(2)}/>
             <GameFooter onLayoutChange={onChildLayout(3)}/>
         </View>
@@ -95,124 +97,8 @@ type PlayerInfoProps = {
 
 const PlayerOneInfo = ({onLayoutChange}: PlayerInfoProps) => {
     return(
-        <View style={styles.playerOneInfo} onLayout={onLayoutChange}></View>
+        <View style={styles.playerInfo} onLayout={onLayoutChange}></View>
     )
 }
 
-type GameBoardProps = {
-    dimension: number,
-    positions: PieceKey[][],
-    onMove: Dispatch<SetStateAction<PieceKey[][]>>
-}
-
-const GameBoard = ({dimension, positions, onMove}: GameBoardProps) =>{
-
-    const squareSize = dimension/8;
-    type renderSquareProps = {
-        row: number,
-        col: number
-    }
-    
-    const [active, setActive] = useState<number[]>([]);
-    const [prevMove, setPrevMove] = useState<number[]>([]);
-    const [check, setCheck] = useState<number[]>([]);
-
-    const renderSquare = ({row, col}: renderSquareProps) => {
-        const sizeMultiple = 0.25;
-        const [textSize, setTextSize] = useState(0);
-
-        useEffect(()=>{
-            setTextSize(squareSize * sizeMultiple);
-        }, [squareSize, sizeMultiple])
-
-        const isDark = (row + col) % 2 === 1;
-        const row_id = 8-row;
-        const col_id = 97+col;
-
-        const isActive = active[0] === row && active[1]===col;
-        const isPrevMove = prevMove[0] === row && prevMove[1] === col;
-        const isCheck = check[0] === row && check[1]===col;
-
-        const bgColor = (isActive) ? '#fdc854' : isPrevMove ? '#5eb5fc' : isCheck ? '#ff3e0e' : isDark ? '#769656' : '#eeeed2';
-
-        const handleTouch = () =>{
-            if(active.length == 0) setActive([row, col]);
-            else if (!isActive){
-                playMoveSound();
-                positions[row][col] = positions[active[0]][active[1]];
-                positions[active[0]][active[1]] = '-';
-                setActive([]);
-                setPrevMove([row, col]);
-            }
-        }
-
-        return (
-          <View
-            key={`${row}-${col}`}
-            style={{ backgroundColor: bgColor, width: squareSize, height: squareSize, display: "flex" }}
-            onTouchEnd={handleTouch}
-          >
-            {(col==0) ? 
-                <Text style={{fontSize: textSize==0?10: textSize, position: "absolute", left: textSize*0.1, top: textSize*0.1, color: isDark ? '#eeeed2' : '#769656'}}>{row_id}</Text>
-                : null 
-            }
-            {positions[row][col]!='-' ? <Piece type={positions[row][col]}/> : null}
-            {(row==7) ? 
-                <Text style={{fontSize: textSize==0?10: textSize, position: "absolute", right: textSize*0.1, bottom: textSize*0.1, color: isDark ? '#eeeed2' : '#769656'}}>{String.fromCharCode(col_id)}</Text>
-                : null 
-            }
-          </View>
-        );
-    };
-    return(
-        <View style={[styles.gameBoard, { width: dimension, height: dimension }]}>
-            {Array.from({ length: 8 }).map((_, row) => (
-                <View key={row} style={styles.row}>
-                    {Array.from({ length: 8 }).map((_, col) => renderSquare({row, col}))}
-                </View>
-            ))}
-        </View>
-    )
-}
-
-export default GameScreen
-
-const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor : "#404e00",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        alignItems: "center"
-    },
-    header: {
-        width: "100%",
-        height: "7%",
-        backgroundColor : "#bbffdd",
-    },
-    footer: {
-        width: "100%",
-        height: "15%",
-        backgroundColor : "#bbffdd",
-    },
-    playerOneInfo: {
-        width: "100%",
-        height: "10%",
-        backgroundColor: "#ddbbff",
-    },
-    boardContainer: {
-        flex: 0.9,
-        width: "100%",
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "#aabbff"
-    },
-    gameBoard: {
-        backgroundColor: "#26619c",
-        flexDirection: "column",
-    },
-    row: {
-      flexDirection: 'row',
-    }
-})
+export default GameScreen;
