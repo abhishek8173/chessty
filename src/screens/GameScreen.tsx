@@ -7,23 +7,32 @@ import GameBoard from '../components/GameBoard';
 
 const default_FEN : string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-const boardBuilder = (fen: string): PieceKey[][] => {
-    let startingBoard: PieceKey[][] = Array.from({ length: 8 }, () => Array(8).fill('-'));
-    const pieceSet = new Set(['r', 'n', 'b', 'q', 'k', 'p', 'R', 'N', 'B', 'Q', 'K', 'P']);
-    let i = 0;
-    let j = 0;
-    for (let char of fen){
-        if(pieceSet.has(char)){
-            startingBoard[i][j] = char as PieceKey;
-        }else if(char != '/'){
-            j+=Number(char);
-        }else{
-            i+=1;
-            j=-1;
-        }
-        j+=1;
+type Board = PieceKey[][]
+
+function boardBuilder(fen: string): Board {
+    const board: Board = Array.from({ length: 8 }, () => Array(8).fill(null));
+    const [position] = fen.split(" ");
+    const rows = position.split("/");
+    
+    if (rows.length !== 8) {
+        throw new Error("Invalid FEN: Incorrect number of rows");
     }
-    return startingBoard;
+    
+    for (let r = 0; r < 8; r++) {
+        let file = 0;
+        for (const char of rows[r]) {
+            if (!isNaN(Number(char))) {
+                file += Number(char); // Empty squares
+            } else {
+                board[r][file] = char as PieceKey; // Piece character
+                file++;
+            }
+        }
+        if (file !== 8) {
+            throw new Error(`Invalid FEN: Row ${r + 1} has incorrect number of columns`);
+        }
+    }
+    return board;
 }
 
 

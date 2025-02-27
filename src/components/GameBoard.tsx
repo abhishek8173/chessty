@@ -22,31 +22,26 @@ const GameBoard = ({dimension, positions, onMove, turn, changeTurn}: GameBoardPr
     }
     
     const [active, setActive] = useState<number[]>([]);
-    const [prevMove, setPrevMove] = useState<number[]>([]);
+    const [prevMove, setPrevMove] = useState<number[][]>([]);
     const [check, setCheck] = useState<number[]>([]);
     const [isValidMove, setIsValidMove] = useState<boolean[][]>([]);
 
     useEffect(()=>{
-        if(active.length !=0) setIsValidMove(validMoves({positions, active}));
+        if(active.length !=0) setIsValidMove(validMoves({positions, active, prevMove}));
     }, [active]);
 
     const renderSquare = ({row, col}: renderSquareProps) => {
         const sizeMultiple = 0.25;
         const textSize = (squareSize * sizeMultiple);
 
-        // useEffect(()=>{
-        //     setTextSize(squareSize * sizeMultiple);
-        // }, [squareSize, sizeMultiple])
-
         const isDark = (row + col) % 2 === 1;
         const row_id = 8-row;
         const col_id = 97+col;
 
-        const isActive = active[0] === row && active[1]===col;
-        const isPrevMove = prevMove[0] === row && prevMove[1] === col;
+        const isActive = active.length!=0 && active[0] === row && active[1]===col;
+        const isPrevMove = prevMove.length==2 && ((prevMove[1][0] === row && prevMove[1][1] === col) || (prevMove[0][0]===row && prevMove[0][1]===col));
         const isCheck = check[0] === row && check[1]===col;
         const isTargetPiece = isValidMove.length!=0 && isValidMove[row][col] && positions[row][col]!='-' && isWhite(positions[row][col]) !== turn;
-        //console.log(`isValid: ${(isValidMove.length!=0)?isValidMove[row][col]: 'validEmpty'} \n row: ${row}, col: ${col}`);
 
         const bgColor = (isActive) ? '#fdc854' : isTargetPiece ? '#ff3e0e' : isPrevMove ? '#5eb5fc' : isDark ? '#769656' : '#eeeed2';
 
@@ -54,11 +49,10 @@ const GameBoard = ({dimension, positions, onMove, turn, changeTurn}: GameBoardPr
             if(active.length==0 && positions[row][col]!='-' as PieceKey && isWhite(positions[row][col]) !== turn) return;
             if(active.length == 0 && positions[row][col]!='-' as PieceKey || (active.length!=0 && isWhite(positions[row][col]) == isWhite(positions[active[0]][active[1]]) && positions[row][col]!='-')){
                 setActive([row, col]);
-                //setIsValidMove(validMoves({positions, active}));
             }
             else if (active.length!=0 && !isActive && isValidMove.length!=0 && isValidMove[row][col]){
                 playMoveSound();
-                setPrevMove([row, col]);
+                setPrevMove([[active[0], active[1]], [row, col]]);
                 setIsValidMove([]);
                 onMove((prevPositions)=>{
                     const newPositions = prevPositions.map((row) => [...row]);
@@ -68,7 +62,6 @@ const GameBoard = ({dimension, positions, onMove, turn, changeTurn}: GameBoardPr
 
                     return newPositions;
                 })
-                //await new Promise((resolve)=>setTimeout(resolve,1000));
                 setActive([]);
                 changeTurn(!turn);
             }

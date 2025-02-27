@@ -2,7 +2,8 @@ import { PieceKey } from "../components/Piece"
 
 type validMovesProps = {
     positions: PieceKey[][],
-    active: number[]
+    active: number[],
+    prevMove: number[][]
 }
 
 type moveCheckProps = {
@@ -15,7 +16,8 @@ type moveCheckProps = {
 type pawnMoveProps = {
     positions: PieceKey[][],
     active: number[],
-    isValid: boolean[][]
+    isValid: boolean[][],
+    prevMove: number[][]
 }
 
 type moveLoopProps = {
@@ -31,21 +33,35 @@ export const isWhite=(piece: PieceKey): boolean=>{
     return pieceAscii>=65 && pieceAscii<=90;
 }
 
-const pawnMove = ({positions, active, isValid}: pawnMoveProps)=>{
+const pawnMove = ({positions, active, isValid, prevMove}: pawnMoveProps)=>{
     const activePiece = positions[active[0]][active[1]];
+    const prevMovedPiece = (prevMove.length!=0) ? positions[prevMove[1][0]][prevMove[1][1]] : '';
+    console.log('last piece: '+prevMovedPiece);
 
     if(isWhite(activePiece)){
         if(active[0]<=0) return;
         if(positions[active[0]-1][active[1]]=='-') isValid[active[0]-1][active[1]] = true;
         if(active[0]==6 && positions[active[0]-2][active[1]]=='-') isValid[active[0]-2][active[1]] = true;
+
+        //diagnal capture
         if(active[0]-1>=0 && active[1]-1>=0 && positions[active[0]-1][active[1]-1] !='-' && !isWhite(positions[active[0]-1][active[1]-1])) isValid[active[0]-1][active[1]-1] = true;
         if(active[0]-1>=0 && active[1]+1<=7 && positions[active[0]-1][active[1]+1] !='-' && !isWhite(positions[active[0]-1][active[1]+1])) isValid[active[0]-1][active[1]+1] = true;
+
+        //en passant
+        if(prevMove.length!=0 && prevMovedPiece=='p' && prevMove[1][0]-prevMove[0][0]==2 && prevMove[0][1]==active[1]-1 && prevMove[1][0]==active[0]) isValid[active[0]-1][active[1]-1] = true;
+        if(prevMove.length!=0 && prevMovedPiece=='p' && prevMove[1][0]-prevMove[0][0]==2 && prevMove[0][1]==active[1]+1 && prevMove[1][0]==active[0]) isValid[active[0]-1][active[1]+1] = true;
     }else{
         if(active[0]>=7) return;
         if(positions[active[0]+1][active[1]]=='-') isValid[active[0]+1][active[1]] = true;
         if(active[0]==1 && positions[active[0]+2][active[1]]=='-') isValid[active[0]+2][active[1]] = true;
+
+        //diagnal capture
         if(active[0]+1<=7 && active[1]-1>=0 && positions[active[0]+1][active[1]-1] !='-' && isWhite(positions[active[0]+1][active[1]-1])) isValid[active[0]+1][active[1]-1] = true;
         if(active[0]+1<7 && active[1]+1<=7 && positions[active[0]+1][active[1]+1] !='-' && isWhite(positions[active[0]+1][active[1]+1])) isValid[active[0]+1][active[1]+1] = true;
+
+        //en passant
+        if(prevMove.length!=0 && prevMovedPiece=='P' && prevMove[0][0]-prevMove[1][0]==2 && prevMove[0][1]==active[1]-1 && prevMove[1][0]==active[0]) isValid[active[0]+1][active[1]-1] = true;
+        if(prevMove.length!=0 && prevMovedPiece=='P' && prevMove[0][0]-prevMove[1][0]==2 && prevMove[0][1]==active[1]+1 && prevMove[1][0]==active[0]) isValid[active[0]+1][active[1]+1] = true;
     }
     return;
 }
@@ -84,14 +100,14 @@ const loopOverMove = ({positions, active, isValid, move, loopDepth}: moveLoopPro
 }
 
 const validMoves = (props: validMovesProps): boolean[][]=>{
-    const {positions, active} = props;
+    const {positions, active, prevMove} = props;
     const isValid: boolean[][] = Array.from({ length: 8 }, () => Array(8).fill(false));
     const sliders = new Set(['k', 'q', 'r', 'b']);
     const pieceType = positions[active[0]][active[1]];
     if(sliders.has(pieceType.toLocaleLowerCase())){
         slidingMoves({positions, active, isValid, pieceType});
     }else if (pieceType.toLocaleLowerCase() == 'p'){
-        pawnMove({positions, active, isValid});
+        pawnMove({positions, active, isValid, prevMove});
     }else if (pieceType.toLocaleLowerCase() == 'n'){
         knightMoves({positions, active, isValid, pieceType});
     }
