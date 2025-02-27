@@ -10,7 +10,7 @@ const default_FEN : string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq
 type Board = PieceKey[][]
 
 function boardBuilder(fen: string): Board {
-    const board: Board = Array.from({ length: 8 }, () => Array(8).fill(null));
+    const board: Board = Array.from({ length: 8 }, () => Array(8).fill('-'));
     const [position] = fen.split(" ");
     const rows = position.split("/");
     
