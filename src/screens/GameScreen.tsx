@@ -4,42 +4,7 @@ import  {PieceKey} from '../components/Piece';
 import styles from '../utils/styles';
 import GameBoard from '../components/GameBoard';
 
-
-const default_FEN : string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
-type Board = PieceKey[][]
-
-function boardBuilder(fen: string): Board {
-    const board: Board = Array.from({ length: 8 }, () => Array(8).fill('-'));
-    const [position] = fen.split(" ");
-    const rows = position.split("/");
-    
-    if (rows.length !== 8) {
-        throw new Error("Invalid FEN: Incorrect number of rows");
-    }
-    
-    for (let r = 0; r < 8; r++) {
-        let file = 0;
-        for (const char of rows[r]) {
-            if (!isNaN(Number(char))) {
-                file += Number(char); // Empty squares
-            } else {
-                board[r][file] = char as PieceKey; // Piece character
-                file++;
-            }
-        }
-        if (file !== 8) {
-            throw new Error(`Invalid FEN: Row ${r + 1} has incorrect number of columns`);
-        }
-    }
-    return board;
-}
-
-
-
 const GameScreen = () => {
-    const fen: string = default_FEN.split(' ')[0];
-    const [boardLayout, setBoardLayout] = useState(boardBuilder(fen));
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
     const [childHeights, setChildHeights] = useState<number[]>([]);
     const [boardDimension, setBoardDimension] = useState(0);
@@ -69,7 +34,7 @@ const GameScreen = () => {
         <View style={styles.screen} onLayout={onScreenLayout}>
             <GameHeader onLayoutChange={onChildLayout(0)}/>
             <PlayerOneInfo onLayoutChange={onChildLayout(1)}/>
-            <GameBoard dimension={boardDimension} positions={boardLayout} onMove={setBoardLayout} turn={whiteTurn} changeTurn={setWhiteTurn}/>
+            <GameBoard dimension={boardDimension} turn={whiteTurn} changeTurn={setWhiteTurn}/>
             <PlayerOneInfo onLayoutChange={onChildLayout(2)}/>
             <GameFooter onLayoutChange={onChildLayout(3)}/>
         </View>
