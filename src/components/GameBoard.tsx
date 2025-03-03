@@ -2,9 +2,8 @@ import { Text, View } from 'react-native'
 import React, {Dispatch, memo, SetStateAction, useEffect, useState} from 'react'
 import Piece, {PieceKey} from '../components/Piece';
 import { playMoveSound } from '../utils/sound';
-import validMoves, { isKingCheck, isPieceWhite } from '../utils/validMoves';
+import findValidMoves, { isKingCheck, isPieceWhite } from '../utils/validMoves';
 import styles from '../utils/styles';
-import findValidMoves from '../utils/validMoves';
 
 type GameBoardProps = {
     dimension: number,
@@ -61,12 +60,12 @@ function boardBuilder(fen: string): boardBuilderReturn {
 const GameBoard = ({dimension, turn, changeTurn}: GameBoardProps) =>{
 
     const squareSize = dimension==0 ? 1 : dimension/8;
+    
+    
     type renderSquareProps = {
         row: number,
         col: number
     }
-
-    
     const fen: string = default_FEN.split(' ')[0];
 
     const {board, whiteKing, blackKing} = boardBuilder(fen);

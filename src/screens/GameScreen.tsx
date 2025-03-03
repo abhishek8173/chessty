@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState} from 'react'
 import  {PieceKey} from '../components/Piece';
 import styles from '../utils/styles';
 import GameBoard from '../components/GameBoard';
+import GameBoardV2 from '../components/GameBoardV2';
 
 const GameScreen = () => {
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -34,7 +35,8 @@ const GameScreen = () => {
         <View style={styles.screen} onLayout={onScreenLayout}>
             <GameHeader onLayoutChange={onChildLayout(0)}/>
             <PlayerOneInfo onLayoutChange={onChildLayout(1)}/>
-            <GameBoard dimension={boardDimension} turn={whiteTurn} changeTurn={setWhiteTurn}/>
+            {/* <GameBoard dimension={boardDimension} turn={whiteTurn} changeTurn={setWhiteTurn}/> */}
+            <GameBoardV2 dimension={boardDimension}/>
             <PlayerOneInfo onLayoutChange={onChildLayout(2)}/>
             <GameFooter onLayoutChange={onChildLayout(3)}/>
         </View>
