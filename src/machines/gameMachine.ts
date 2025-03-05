@@ -1,5 +1,6 @@
 import { actions, assign, createMachine } from "xstate";
 import { PieceKey } from "../components/Piece";
+import { playMoveSound } from '../utils/sound';
 import findValidMoves, { isKingCheck, isPieceWhite } from "../utils/validMoves";
 
 enum GameMachineStates {
@@ -214,8 +215,8 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                 validMoves: Set<string>,
                 enPassant: number[]
             }> => {
-                const {positions, active, prevMove, whiteKing, blackKing} = context;
-                const {isValidAndSafe, enPassant} = findValidMoves({positions, active, prevMove, whiteKing, blackKing});
+                const {positions, active, prevMove, whiteKing, blackKing, isWhiteTurn} = context;
+                const {isValidAndSafe, enPassant} = findValidMoves({positions, active, prevMove, whiteKing, blackKing, isWhiteTurn});
                 return {
                     validMoves: isValidAndSafe,
                     enPassant
@@ -248,11 +249,12 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                 positions[file][rank] = positions[active[0]][active[1]];
                 positions[active[0]][active[1]] = '-';
                 prevMove = [[active[0], active[1]], [file, rank]];
-                const [mx, my] = (isPieceWhite(positions[file][rank])) ? blackKing : whiteKing;
-                const [activeX, activeY] = [file, rank];
-                kingCheck = isKingCheck({positions, mx, my, activeX, activeY});
+                const [kx, ky] = (isWhiteTurn) ? blackKing : whiteKing;
+                //kingCheck = isKingCheck({positions, kx, ky, activeX: file, activeY: rank, isWhiteTurn, fromMachine: true});
+                kingCheck = isKingCheck(positions, isWhiteTurn, kx, ky);
                 validMoves.clear();
                 active = [];
+                playMoveSound();
                 return {
                     positions,
                     prevMove,

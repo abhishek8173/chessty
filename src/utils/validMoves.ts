@@ -5,7 +5,8 @@ type findValidMovesProps = {
     active: number[],
     prevMove: number[][],
     whiteKing: number[],
-    blackKing: number[]
+    blackKing: number[],
+    isWhiteTurn: boolean
 }
 
 type findValidReturn = {
@@ -39,8 +40,22 @@ type nextMoveCheckProps = {
     positions: PieceKey[][],
     mx: number,
     my: number,
+    kx: number,
+    ky: number,
     activeX: number,
-    activeY: number
+    activeY: number,
+    isWhiteTurn: boolean,
+    fromMachine: boolean
+}
+
+type kingCheckProps = {
+    positions: PieceKey[][],
+    kx: number,
+    ky: number,
+    activeX: number,
+    activeY: number,
+    isWhiteTurn: boolean,
+    fromMachine: boolean
 }
 
 type checkHitProps = {
@@ -56,8 +71,17 @@ type checkHitProps = {
     isWhite: boolean
 }
 
-let w_k: number[] = []
-let b_k: number[] = []
+const kingDirections = [[-1, -1], [-1, 1], [1, -1], [1, 1], [-1, 0], [1, 0], [0, -1], [0, 1]];
+const pawnsAndKnights = {
+    pawn : {
+        kingWhite : [[-1,1], [-1, -1]], //possible threat direction
+        kingBlack : [[1, 1], [1, -1]]
+    },
+    knight : [
+        [-2, -1], [-2, 1], [2, -1], [2, 1],
+        [-1, -2], [-1, 2], [1, -2], [1, 2]
+    ]
+}
 
 const isInBounds = (x: number, y: number) => x >= 0 && x < 8 && y >= 0 && y < 8;
 
@@ -67,20 +91,29 @@ export const isPieceWhite=(piece: PieceKey): boolean=>{
 
 const checkHit = ({positions, activeX, activeY, dx, dy, nx, ny, mx ,my, isWhite}: checkHitProps) : boolean => {
     while (isInBounds(nx, ny)) {
-        if ((positions[nx][ny] && (nx != activeX && ny !== activeY) && isWhite === isPieceWhite(positions[nx][ny])) || (nx == mx && ny == my)) {
-            break;
+        console.log (`checking hit at ${nx}, ${ny} for mx: ${mx}, my: ${my}, dx: ${dx}, dy: ${dy}, active: [${activeX}, ${activeY}], isWhite: ${isWhite}`);
+        if ((positions[nx][ny]!='-' && (nx != activeX || ny != activeY) && (isWhite == isPieceWhite(positions[nx][ny])) || (nx == mx && ny == my))) {
+            console.log(`broke loop with condition at ${nx}, ${ny} for mx: ${mx}, my: ${my}, dx: ${dx}, dy: ${dy}, active: [${activeX}, ${activeY}], isWhite: ${isWhite}`)
+            return false;
         }
-        else if (positions[nx][ny] && isWhite !== isPieceWhite(positions[nx][ny])) {
+        else if (positions[nx][ny]!='-' && isWhite !== isPieceWhite(positions[nx][ny])) {
             const enemyPiece = positions[nx][ny].toLocaleLowerCase();
             const straightKillers = ['r', 'q'];
             const diagonalKillers = ['b', 'q'];
             if (dx * dy === 0 && straightKillers.includes(enemyPiece)) {
+                console.log(`hitting ${positions[nx][ny]}`);
                 return true;
             }
             else if (dx * dy !== 0 && diagonalKillers.includes(enemyPiece)) {
+                console.log(`hitting ${positions[nx][ny]}`);
                 return true;
-            }else break;
+            }else return false;
         }
+        else if(positions[nx][ny]!='-' && isWhite === isPieceWhite(positions[nx][ny]) && (nx === mx && ny === my) && (nx != activeX || ny !== activeY)){
+            console.log('ally piece');
+            return false;
+        }
+        console.log('empty square');
         nx+=dx;
         ny+=dy;
     }
@@ -92,11 +125,43 @@ const checkHit = ({positions, activeX, activeY, dx, dy, nx, ny, mx ,my, isWhite}
 //     return false;
 // }
 
-export const isKingCheck = ({positions, mx, my, activeX, activeY}: nextMoveCheckProps) : boolean => {
+export const isKingCheck = (positions: PieceKey[][], isWhiteTurn: boolean, kx: number, ky: number) =>{ //kx, ky os king's position
+    const isKingWhite = !isWhiteTurn;
+
+    let isCheckFromPawnOrKnight = false;
+    if(isKingWhite){
+        pawnsAndKnights.pawn.kingWhite.forEach(([dx, dy])=>{
+            let nx = kx+dx, ny= ky+dy;
+            if(isInBounds(nx, ny) && positions[nx][ny]=='p') {isCheckFromPawnOrKnight=true;
+            }
+        })
+        pawnsAndKnights.knight.forEach(([dx, dy])=>{
+            let nx = kx+dx, ny= ky+dy;
+            if(isInBounds(nx, ny) && positions[nx][ny]=='n') isCheckFromPawnOrKnight=true;
+        })
+    }else{
+        pawnsAndKnights.pawn.kingBlack.forEach(([dx, dy])=>{
+            let nx = kx+dx, ny= ky+dy;
+            if(isInBounds(nx, ny) && positions[nx][ny]=='P') isCheckFromPawnOrKnight=true;
+        })
+        pawnsAndKnights.knight.forEach(([dx, dy])=>{
+            let nx = kx+dx, ny= ky+dy;
+            if(isInBounds(nx, ny) && positions[nx][ny]=='N') isCheckFromPawnOrKnight=true;
+        })
+    }
+    if(isCheckFromPawnOrKnight) return true;
+    for (const [dx, dy] of kingDirections) {
+        let nx = kx + dx, ny = ky + dy;
+        if(checkHit({positions, activeX: -1, activeY: -1, dx, dy, nx, ny, mx: -1, my: -1, isWhite: !isWhiteTurn})) return true;
+    }
+    return false;
+}
+
+const isKingThreat = ({positions, kx, ky, activeX, activeY, isWhiteTurn, fromMachine}: kingCheckProps) : boolean => {
     const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1], [-1, 0], [1, 0], [0, -1], [0, 1]];
     const pawnsAndKnights = {
         pawn : {
-            kingWhite : [[-1,1], [-1, -1]],
+            kingWhite : [[-1,1], [-1, -1]], //possible threat direction
             kingBlack : [[1, 1], [1, -1]]
         },
         knight : [
@@ -104,44 +169,43 @@ export const isKingCheck = ({positions, mx, my, activeX, activeY}: nextMoveCheck
             [-1, -2], [-1, 2], [1, -2], [1, 2]
         ]
     }
-    const isWhite = isPieceWhite(positions[activeX][activeY]);
-    const king = [mx, my];
+    const isWhite = (fromMachine) ? !isWhiteTurn: isPieceWhite(positions[activeX][activeY]);
     let isCheckFromPawnOrKnightAtNewPos = false;
     if(isWhite){
         pawnsAndKnights.pawn.kingWhite.forEach(([dx, dy])=>{
-            let nx = mx+dx, ny= my+dy;
+            let nx = kx+dx, ny= ky+dy;
             if(isInBounds(nx, ny) && positions[nx][ny]=='p') {isCheckFromPawnOrKnightAtNewPos=true;
             }
         })
         pawnsAndKnights.knight.forEach(([dx, dy])=>{
-            let nx = mx+dx, ny= my+dy;
+            let nx = kx+dx, ny= ky+dy;
             if(isInBounds(nx, ny) && positions[nx][ny]=='n') isCheckFromPawnOrKnightAtNewPos=true;
         })
     }else{
         pawnsAndKnights.pawn.kingBlack.forEach(([dx, dy])=>{
-            let nx = mx+dx, ny= my+dy;
+            let nx = kx+dx, ny= ky+dy;
             if(isInBounds(nx, ny) && positions[nx][ny]=='P') isCheckFromPawnOrKnightAtNewPos=true;
         })
         pawnsAndKnights.knight.forEach(([dx, dy])=>{
-            let nx = mx+dx, ny= my+dy;
+            let nx = kx+dx, ny= ky+dy;
             if(isInBounds(nx, ny) && positions[nx][ny]=='N') isCheckFromPawnOrKnightAtNewPos=true;
         })
     }
     if(isCheckFromPawnOrKnightAtNewPos) return true;
     for (const [dx, dy] of directions) {
-        let nx = king[0] + dx, ny = king[1] + dy;
-        if(checkHit({positions, activeX, activeY, dx, dy, nx, ny, mx, my, isWhite})) return true;
+        let nx = kx + dx, ny = ky + dy;
+        if(checkHit({positions, activeX, activeY, dx, dy, nx, ny, mx: kx, my: ky, isWhite})) return true;
     }
     return false;
 }
 
-const isPiecePinned = ({positions, mx, my, activeX, activeY}: nextMoveCheckProps) : boolean => {
+const isPiecePinned = ({positions, mx, my, kx, ky, activeX, activeY}: nextMoveCheckProps) : boolean => {
     // Simplified check detection (expand with full check validation)
+    console.log(`new Piece active: ${positions[activeX][activeY]}`)
     const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1], [-1, 0], [1, 0], [0, -1], [0, 1]];
     const isWhite = isPieceWhite(positions[activeX][activeY]);
-    const king = isWhite ? w_k : b_k;
-    for (const [dx, dy] of directions) {
-        let nx = king[0] + dx, ny = king[1] + dy;
+    for (let [dx, dy] of directions) {
+        let nx = kx + dx, ny = ky + dy;
         if(checkHit({positions, activeX, activeY, dx, dy, nx, ny, mx, my, isWhite})) return true;
     }
     return false;
@@ -214,9 +278,7 @@ const loopOverMove = ({positions, active, isValid, move, loopDepth}: moveLoopPro
 }
 
 const findValidMoves = (props: findValidMovesProps): findValidReturn=>{
-    const {positions, active, prevMove, whiteKing, blackKing} = props;
-    w_k=whiteKing;
-    b_k=blackKing;
+    const {positions, active, prevMove, whiteKing, blackKing, isWhiteTurn} = props;
     const isValid = new Set<string>();
     const sliders = new Set(['k', 'q', 'r', 'b']);
     const pieceType = positions[active[0]][active[1]];
@@ -232,8 +294,9 @@ const findValidMoves = (props: findValidMovesProps): findValidReturn=>{
         const m = s.split(' ');
         const mx = parseInt(m[0]), my=parseInt(m[1]);
         const activeX = active[0], activeY=active[1];
-        if(pieceType.toLocaleLowerCase()=='k' && !isKingCheck({positions, mx, my, activeX, activeY})) isValidAndSafe.add(s); // not safe if new position open attack on own king
-        else if(!isPiecePinned({positions, mx, my, activeX, activeY})) isValidAndSafe.add(s);
+        const [kx, ky] = (isWhiteTurn) ? whiteKing : blackKing;
+        if(pieceType.toLocaleLowerCase()=='k' && !isKingThreat({positions, kx: mx, ky: my, activeX, activeY, isWhiteTurn, fromMachine: false})) isValidAndSafe.add(s); // not safe if new position open attack on own king
+        else if(!isPiecePinned({positions, mx, my, kx, ky, activeX, activeY, isWhiteTurn, fromMachine: false})) isValidAndSafe.add(s);
     }
     const enPassant: number[] = [];
     return {isValidAndSafe, enPassant};
