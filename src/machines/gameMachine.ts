@@ -1,7 +1,7 @@
 import { actions, assign, createMachine } from "xstate";
 import { PieceKey } from "../components/Piece";
 import { playMoveSound } from '../utils/sound';
-import findValidMoves, { isKingCheck, isPieceWhite } from "../utils/validMoves";
+import findValidMoves, { SquareTargeted, isPieceWhite, isCheckMate } from "../utils/validMoves";
 
 enum GameMachineStates {
     INITIALIZE = 'initialize',
@@ -26,6 +26,7 @@ type GameMachineContext = {
     prevMove: number[][],
     isWhiteTurn: boolean,
     kingCheck: boolean,
+    checkMate: boolean,
     enPassant: number[],
     file: number,
     rank: number
@@ -40,8 +41,9 @@ type GameMachineEvents = {
     data: {validMoves: Set<string>, enPassant: number[]};
 } | {
     type: 'done.invoke.makeMove';
-    data: {positions: PieceKey[][], prevMove: number[][], kingCheck: boolean, isWhiteTurn: boolean, active: number[],
-        capturedBlacks: Map<PieceKey, number>, capturedWhites: Map<PieceKey, number>, validMoves: Set<string>};
+    data: {positions: PieceKey[][], prevMove: number[][], kingCheck: boolean, isWhiteTurn: boolean, 
+        active: number[], capturedBlacks: Map<PieceKey, number>, capturedWhites: Map<PieceKey, number>,
+        validMoves: Set<string>, enPassant: number[], checkMate: boolean, whiteKing: number[], blackKing: number[]};
 } | {
     type: 'MOVE';
     data: {row: number, col: number};
@@ -64,6 +66,7 @@ const defaultGameMachineContext: GameMachineContext = {
     prevMove: [],
     isWhiteTurn: true,
     kingCheck: false,
+    checkMate: false,
     enPassant: [],
     file: -1,
     rank: -1
@@ -161,14 +164,14 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     src: 'makeMove',
                     onDone: [
                         {
-                            target: GameMachineStates.IDLE,
-                            //cond: 'isCheckMate',
+                            target: GameMachineStates.CHECKMATE,
+                            cond: 'isCheckMate',
                             actions: 'setContext',
                         },
-                        // {
-                        //     target: GameMachineStates.IDLE,
-                        //     actions: 'setContext',
-                        // },
+                        {
+                            target: GameMachineStates.IDLE,
+                            actions: 'setContext',
+                        },
                     ],
                 },
             },
@@ -215,8 +218,8 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                 validMoves: Set<string>,
                 enPassant: number[]
             }> => {
-                const {positions, active, prevMove, whiteKing, blackKing, isWhiteTurn} = context;
-                const {isValidAndSafe, enPassant} = findValidMoves({positions, active, prevMove, whiteKing, blackKing, isWhiteTurn});
+                const {positions, active, prevMove, whiteKing, blackKing, isWhiteTurn, castlingRights} = context;
+                const {isValidAndSafe, enPassant} = findValidMoves({positions, active, prevMove, whiteKing, blackKing, isWhiteTurn, castlingRights});
                 return {
                     validMoves: isValidAndSafe,
                     enPassant
@@ -233,10 +236,26 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                 capturedBlacks: Map<PieceKey, number>,
                 capturedWhites: Map<PieceKey, number>,
                 validMoves: Set<String>,
-                active: number[]
+                active: number[],
+                checkMate: boolean,
+                whiteKing: number[],
+                blackKing: number[],
+                enPassant: number[]
             }> => {
-                let {positions, prevMove, kingCheck, active, file, rank, whiteKing, blackKing, isWhiteTurn, capturedWhites, capturedBlacks, validMoves} = context;
+                let {positions, prevMove, kingCheck, active, file, rank, whiteKing, blackKing, isWhiteTurn, capturedWhites, capturedBlacks, validMoves, enPassant, castlingRights} = context;
                 const targetPiece = positions[file][rank];
+                if(enPassant.length!=0 && file==enPassant[0] && rank==enPassant[1]){
+                    if(isWhiteTurn){
+                        const currCount = capturedBlacks.get('p') ?? 0;
+                        capturedBlacks.set(targetPiece, currCount+1);
+                        positions[enPassant[0]+1][enPassant[1]] = '-';
+                    }else{
+                        const currCount = capturedWhites.get('P') ?? 0;
+                        capturedWhites.set(targetPiece, currCount+1);
+                        positions[enPassant[0]+1][enPassant[1]] = '-';
+                    }
+                    enPassant = [];
+                }
                 if(targetPiece != '-'){
                     if(isPieceWhite(targetPiece)){
                         const currCount = capturedWhites.get(targetPiece) ?? 0;
@@ -250,8 +269,23 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                 positions[active[0]][active[1]] = '-';
                 prevMove = [[active[0], active[1]], [file, rank]];
                 const [kx, ky] = (isWhiteTurn) ? blackKing : whiteKing;
+                if(positions[file][rank].toLocaleLowerCase()=='k'){
+                    if(isWhiteTurn) whiteKing=[file, rank];
+                    else blackKing=[file, rank];
+                    if(Math.abs(active[1]-rank)===2){
+                        if(rank===2){
+                            positions[file][0]='-';
+                            positions[file][3]=(isWhiteTurn)?'R':'r';
+                        }else if (rank===6){
+                            positions[file][7]='-';
+                            positions[file][5]=(isWhiteTurn)?'R':'r';
+                        }
+                    }
+                }
                 //kingCheck = isKingCheck({positions, kx, ky, activeX: file, activeY: rank, isWhiteTurn, fromMachine: true});
-                kingCheck = isKingCheck(positions, isWhiteTurn, kx, ky);
+                const threatsToKing = SquareTargeted({positions, isWhiteTurn, kx, ky});
+                kingCheck = threatsToKing.length !=0;
+                const checkMate = isCheckMate({positions, isWhiteTurn, kx, ky, whiteKing, blackKing, prevMove, threatDirections: threatsToKing, castlingRights});
                 validMoves.clear();
                 active = [];
                 playMoveSound();
@@ -263,7 +297,11 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     capturedBlacks,
                     capturedWhites,
                     validMoves,
-                    active
+                    active,
+                    checkMate,
+                    blackKing,
+                    whiteKing,
+                    enPassant
                 }
             }
         },
@@ -312,11 +350,23 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                         context.capturedWhites = event.data.capturedWhites;
                         context.validMoves = event.data.validMoves;
                         context.active = event.data.active;
+                        context.enPassant = event.data.enPassant;
+                        context.checkMate = event.data.checkMate;
+                        context.blackKing = event.data.blackKing;
+                        context.whiteKing = event.data.whiteKing;
                         return context;
                     }
                 }
                 return context;
             })
+        },
+        guards: {
+            isCheckMate: (context, event): boolean => {
+                if (event.type === 'done.invoke.makeMove'){
+                    return event.data.checkMate;
+                }
+                return false;
+            },
         }
     }
 )

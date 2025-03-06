@@ -1,5 +1,6 @@
 import { View, Image, Text, StyleSheet, LayoutChangeEvent } from 'react-native'
 import React, { useState, useEffect } from 'react'
+import { isPieceWhite } from '../utils/validMoves'
 import bk from '../../assets/sprites/bk.png'
 import bq from '../../assets/sprites/bq.png'
 import bb from '../../assets/sprites/bb.png'
@@ -27,6 +28,7 @@ type Pieces = Record<PieceKey, Piece>;
 
 type PieceProps={
   type : PieceKey;
+  isPassnPlay: boolean
 }
 
 
@@ -46,9 +48,10 @@ const pieces: Pieces = {
   '-' : { img: null, weight: 0}
 };
 
-const Piece = ({type}: PieceProps) => {
+const Piece = ({type, isPassnPlay}: PieceProps) => {
+  const rotation = !isPassnPlay ? '0deg' : isPieceWhite(type) ? '0deg' : '180deg';
   return (
-    <View style={styles.square}>
+    <View style={{...styles.square, transform: [{ rotate: rotation}]}}>
       <Image source={pieces[type].img} style={{width: "100%", height: "100%"}}/>
     </View>
   )
