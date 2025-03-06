@@ -1,7 +1,7 @@
 import { assign, createMachine } from "xstate";
-import { PieceKey } from "../components/Piece";
 import { playMoveSound } from '../utils/sound';
 import findValidMoves, { SquareTargeted, isPieceWhite, isCheckMate } from "../utils/validMoves";
+import { PieceKey } from "../@types/gamescreenTypes";
 
 enum GameMachineStates {
     INITIALIZE = 'initialize',
@@ -14,7 +14,7 @@ enum GameMachineStates {
 
 type castleDirection = 'k' | 'K' | 'q' | 'Q' | '-';
 
-type GameMachineContext = {
+export type GameMachineContext = {
     positions: PieceKey[][],
     castlingRights: Set<castleDirection>,
     capturedBlacks: Map<PieceKey, number>,
@@ -32,7 +32,7 @@ type GameMachineContext = {
     rank: number
 }
 
-type GameMachineEvents = {
+export type GameMachineEvents = {
     type: 'done.invoke.initialize';
     data: {positions: PieceKey[][],  whiteKing: number[], blackKing: number[], isWhiteTurn: boolean, castlingRights: Set<castleDirection>, enPassant: number[]};
 } |

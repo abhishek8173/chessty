@@ -1,24 +1,14 @@
 import { Text, View } from 'react-native'
 import React, {memo} from 'react'
-import Piece, {PieceKey} from '../components/Piece';
+import Piece from '../components/Piece';
 import { isPieceWhite } from '../utils/validMoves';
 import styles from '../utils/styles';
-import { useMachine } from '@xstate/react';
-import { gameMachine } from '../machines/gameMachine';
+import { GameBoardProps, renderSquareProps, PieceKey } from '../@types/gamescreenTypes';
 
-type GameBoardProps = {
-    dimension: number
-}
 
-type renderSquareProps = {
-    row: number,
-    col: number
-}
-
-const GameBoardV2 = ({dimension}: GameBoardProps) =>{
+const GameBoardV2 = ({dimension, sendEvent, stateContext}: GameBoardProps) =>{
 
     const squareSize = dimension==0 ? 1 : dimension/8;
-    const [state, send] = useMachine(gameMachine);
     const isPassnPlay = true;
 
     const renderSquare = ({row, col}: renderSquareProps) => {
@@ -29,7 +19,7 @@ const GameBoardV2 = ({dimension}: GameBoardProps) =>{
 
         const {positions, validMoves, prevMove,
         active, whiteKing, blackKing, kingCheck,
-        enPassant, isWhiteTurn} = state.context;
+        enPassant, isWhiteTurn} = stateContext;
 
         const row_id = 8-row;
         const col_id = 97+col;
@@ -37,10 +27,10 @@ const GameBoardV2 = ({dimension}: GameBoardProps) =>{
         const handleTouch = async () =>{
             if(active.length==0 && positions[row][col]!='-' as PieceKey && isPieceWhite(positions[row][col]) !== isWhiteTurn) return;
             if(active.length == 0 && positions[row][col]!='-' as PieceKey || (active.length!=0 && isPieceWhite(positions[row][col]) == isPieceWhite(positions[active[0]][active[1]]) && positions[row][col]!='-')){
-                send({type: 'SELECT', data: {row, col}});
+                sendEvent({type: 'SELECT', data: {row, col}});
             }
             else if (active.length!=0 && !isActive && validMoves.size!=0 && validMoves.has(row+' '+col)){
-                send({type: 'MOVE', data: {row, col}});
+                sendEvent({type: 'MOVE', data: {row, col}});
             }
         }
 
@@ -73,9 +63,9 @@ const GameBoardV2 = ({dimension}: GameBoardProps) =>{
                     </Text> : null
                 }
 
-                {state.context.positions.length!=0 && state.context.positions[row][col]!='-' ? <Piece type={state.context.positions[row][col]} isPassnPlay={isPassnPlay}/> : null }
+                {positions.length!=0 && positions[row][col]!='-' ? <Piece type={positions[row][col]} isPassnPlay={isPassnPlay}/> : null }
 
-                {state.context.validMoves.size!=0 && state.context.validMoves.has(row+' '+col) && !isTargetPiece ? 
+                {validMoves.size!=0 && validMoves.has(row+' '+col) && !isTargetPiece ? 
                     <View style={{backgroundColor: '#5eff00', 
                         borderRadius: "50%", width: "40%", height: "40%"}}/> 
                     : null

@@ -13,23 +13,8 @@ import wb from '../../assets/sprites/wb.png'
 import wn from '../../assets/sprites/wn.png'
 import wr from '../../assets/sprites/wr.png'
 import wp from '../../assets/sprites/wp.png'
+import { Pieces, PieceProps } from '../@types/gamescreenTypes'
 
-
-export type PieceKey = 'k' | 'q' | 'b' | 'n' | 'r' | 'p' | 'K' | 'Q' | 'B' | 'N' | 'R' | 'P' | '-';
-
-
-type Piece = {
-  img: any;
-  weight: number
-};
-
-type Pieces = Record<PieceKey, Piece>;
-
-
-type PieceProps={
-  type : PieceKey;
-  isPassnPlay: boolean
-}
 
 
 const pieces: Pieces = {
