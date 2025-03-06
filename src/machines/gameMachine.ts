@@ -1,4 +1,4 @@
-import { actions, assign, createMachine } from "xstate";
+import { assign, createMachine } from "xstate";
 import { PieceKey } from "../components/Piece";
 import { playMoveSound } from '../utils/sound';
 import findValidMoves, { SquareTargeted, isPieceWhite, isCheckMate } from "../utils/validMoves";

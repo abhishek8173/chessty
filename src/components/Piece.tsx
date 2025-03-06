@@ -1,5 +1,5 @@
-import { View, Image, Text, StyleSheet, LayoutChangeEvent } from 'react-native'
-import React, { useState, useEffect } from 'react'
+import { View, Image, Text, StyleSheet } from 'react-native'
+import React from 'react'
 import { isPieceWhite } from '../utils/validMoves'
 import bk from '../../assets/sprites/bk.png'
 import bq from '../../assets/sprites/bq.png'

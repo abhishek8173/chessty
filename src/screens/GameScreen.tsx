@@ -1,15 +1,12 @@
 import { View, LayoutChangeEvent } from 'react-native'
 import React, { useCallback, useEffect, useState} from 'react'
-import  {PieceKey} from '../components/Piece';
 import styles from '../utils/styles';
-import GameBoard from '../components/GameBoard';
 import GameBoardV2 from '../components/GameBoardV2';
 
 const GameScreen = () => {
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
     const [childHeights, setChildHeights] = useState<number[]>([]);
     const [boardDimension, setBoardDimension] = useState(0);
-    const [whiteTurn, setWhiteTurn] = useState(true); // true means white turn, false is black turn
 
     const onScreenLayout = useCallback((event: LayoutChangeEvent) => {
         const { width, height } = event.nativeEvent.layout;

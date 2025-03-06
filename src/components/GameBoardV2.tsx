@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native'
-import React, {memo, useEffect} from 'react'
+import React, {memo} from 'react'
 import Piece, {PieceKey} from '../components/Piece';
 import { isPieceWhite } from '../utils/validMoves';
 import styles from '../utils/styles';
