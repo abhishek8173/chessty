@@ -2,6 +2,8 @@ import { assign, createMachine } from "xstate";
 import { playMoveSound } from '../utils/sound';
 import findValidMoves, { SquareTargeted, isPieceWhite, isCheckMate } from "../utils/validMoves";
 import { PieceKey } from "../@types/gamescreenTypes";
+import { actionTypes } from "xstate/lib/actions";
+import { MAX_MOVES_WITHOUT_CAPTURE } from "../utils/constants";
 
 enum GameMachineStates {
     INITIALIZE = 'initialize',
@@ -9,7 +11,8 @@ enum GameMachineStates {
     CHECK_VALID_MOVES = 'checkValidMoves',
     MAKE_MOVE = 'makeMove',
     CHECKMATE = 'checkMate',
-    RESIGNED = 'resigned'
+    RESIGNED = 'resigned',
+    STALEMATE = 'stalemate'
 }
 
 type castleDirection = 'k' | 'K' | 'q' | 'Q' | '-';
@@ -29,7 +32,8 @@ export type GameMachineContext = {
     checkMate: boolean,
     enPassant: number[],
     file: number,
-    rank: number
+    rank: number,
+    numberOfMovesSinceLastCapture: number
 }
 
 export type GameMachineEvents = {
@@ -43,7 +47,8 @@ export type GameMachineEvents = {
     type: 'done.invoke.makeMove';
     data: {positions: PieceKey[][], prevMove: number[][], kingCheck: boolean, isWhiteTurn: boolean, 
         active: number[], capturedBlacks: Map<PieceKey, number>, capturedWhites: Map<PieceKey, number>,
-        validMoves: Set<string>, enPassant: number[], checkMate: boolean, whiteKing: number[], blackKing: number[]};
+        validMoves: Set<string>, enPassant: number[], checkMate: boolean, whiteKing: number[], 
+        blackKing: number[], numberOfMovesSinceLastCapture: number};
 } | {
     type: 'MOVE';
     data: {row: number, col: number};
@@ -69,7 +74,8 @@ const defaultGameMachineContext: GameMachineContext = {
     checkMate: false,
     enPassant: [],
     file: -1,
-    rank: -1
+    rank: -1,
+    numberOfMovesSinceLastCapture: 0
 
 }
 
@@ -164,13 +170,24 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     src: 'makeMove',
                     onDone: [
                         {
-                            target: GameMachineStates.CHECKMATE,
-                            cond: 'isCheckMate',
+                            target: GameMachineStates.IDLE,
+                            cond: 'isGameNotOver',
                             actions: 'setContext',
                         },
                         {
-                            target: GameMachineStates.IDLE,
                             actions: 'setContext',
+                        },
+                    ],
+                },
+                after: {
+                    500: [
+                        {
+                            target: GameMachineStates.CHECKMATE,
+                            cond: 'isCheckMate',
+                        },
+                        {
+                            target: GameMachineStates.STALEMATE,
+                            cond: 'isStaleMate',
                         },
                     ],
                 },
@@ -179,6 +196,9 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                 type: 'final'
             },
             [GameMachineStates.RESIGNED]: {
+                type: 'final'
+            },
+            [GameMachineStates.STALEMATE]:{
                 type: 'final'
             }
         },
@@ -227,7 +247,7 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
             },
             makeMove: async (
                 context : GameMachineContext,
-                event: GameMachineEvents
+                _
             ): Promise<{
                 positions: PieceKey[][],
                 prevMove: number[][],
@@ -240,18 +260,40 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                 checkMate: boolean,
                 whiteKing: number[],
                 blackKing: number[],
-                enPassant: number[]
+                enPassant: number[],
+                numberOfMovesSinceLastCapture: number
             }> => {
-                let {positions, prevMove, kingCheck, active, file, rank, whiteKing, blackKing, isWhiteTurn, capturedWhites, capturedBlacks, validMoves, enPassant, castlingRights} = context;
+                let {positions, prevMove, kingCheck, active, file, rank, whiteKing, blackKing, isWhiteTurn, capturedWhites, capturedBlacks, validMoves, enPassant, castlingRights, numberOfMovesSinceLastCapture} = context;
                 const targetPiece = positions[file][rank];
+                numberOfMovesSinceLastCapture++;
+                const activePiece = positions[active[0]][active[1]];
+
+                if(activePiece=='K'){
+                    castlingRights.delete('K');
+                    castlingRights.delete('Q');
+                }else if (activePiece=='k'){
+                    castlingRights.delete('k');
+                    castlingRights.delete('q');
+                }
+
+                if(activePiece=='R'){
+                    if(active[1]==0) castlingRights.delete('Q');
+                    else castlingRights.delete('K');
+                }else if (activePiece=='r'){
+                    if(active[1]==0) castlingRights.delete('q');
+                    else castlingRights.delete('k');
+                }
+
                 if(enPassant.length!=0 && file==enPassant[0] && rank==enPassant[1]){
                     if(isWhiteTurn){
                         const currCount = capturedBlacks.get('p') ?? 0;
                         capturedBlacks.set(targetPiece, currCount+1);
+                        numberOfMovesSinceLastCapture=0;
                         positions[enPassant[0]+1][enPassant[1]] = '-';
                     }else{
                         const currCount = capturedWhites.get('P') ?? 0;
                         capturedWhites.set(targetPiece, currCount+1);
+                        numberOfMovesSinceLastCapture=0;
                         positions[enPassant[0]+1][enPassant[1]] = '-';
                     }
                     enPassant = [];
@@ -260,9 +302,11 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     if(isPieceWhite(targetPiece)){
                         const currCount = capturedWhites.get(targetPiece) ?? 0;
                         capturedWhites.set(targetPiece, currCount+1);
+                        numberOfMovesSinceLastCapture=0;
                     }else{
                         const currCount = capturedBlacks.get(targetPiece) ?? 0;
                         capturedBlacks.set(targetPiece, currCount+1);
+                        numberOfMovesSinceLastCapture=0;
                     }
                 }
                 positions[file][rank] = positions[active[0]][active[1]];
@@ -301,7 +345,8 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     checkMate,
                     blackKing,
                     whiteKing,
-                    enPassant
+                    enPassant,
+                    numberOfMovesSinceLastCapture
                 }
             }
         },
@@ -354,6 +399,7 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                         context.checkMate = event.data.checkMate;
                         context.blackKing = event.data.blackKing;
                         context.whiteKing = event.data.whiteKing;
+                        context.numberOfMovesSinceLastCapture = event.data.numberOfMovesSinceLastCapture;
                         return context;
                     }
                 }
@@ -361,12 +407,18 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
             })
         },
         guards: {
-            isCheckMate: (context, event): boolean => {
-                if (event.type === 'done.invoke.makeMove'){
-                    return event.data.checkMate;
+            isCheckMate: (context, _): boolean => {
+                return context.checkMate;
+            },
+            isStaleMate: (context): boolean =>{
+                return context.numberOfMovesSinceLastCapture >= MAX_MOVES_WITHOUT_CAPTURE;
+            },
+            isGameNotOver: (_, event): boolean => {
+                if(event.type === 'done.invoke.makeMove'){
+                    return !(event.data.numberOfMovesSinceLastCapture >= MAX_MOVES_WITHOUT_CAPTURE) && !event.data.checkMate;
                 }
                 return false;
-            },
+            }
         }
     }
 )

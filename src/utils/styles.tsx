@@ -1,5 +1,4 @@
 import { StyleSheet } from "react-native";
-import { cancel } from "xstate";
 
 const styles = StyleSheet.create({
     screen: {
@@ -8,17 +7,25 @@ const styles = StyleSheet.create({
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        alignItems: "center"
+        alignItems: "center",
+        zIndex: 0,
     },
     header: {
         width: "100%",
         height: "7%",
-        backgroundColor : "#bbffdd",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 7,
+        borderBottomWidth: 2,
+        borderColor: "#eeeed2"
     },
     footer: {
         width: "100%",
         height: "15%",
-        backgroundColor : "#bbffdd",
+        borderTopWidth: 2,
+        borderColor: "#eeeed2"
     },
     playerInfo: {
         width: "100%",
@@ -44,7 +51,7 @@ const styles = StyleSheet.create({
     row: {
       flexDirection: 'row',
     },
-    resignConfirmation: {
+    popUpContainer: {
         backgroundColor: '#000000aa',
         width: '100%',
         height: '100%', 
@@ -55,7 +62,7 @@ const styles = StyleSheet.create({
         position: 'absolute', 
         zIndex: 10
     },
-    resignConfirmationPopUp : {
+    popUpBox : {
         width:'80%', 
         aspectRatio: 1, 
         backgroundColor: '#76a757', 

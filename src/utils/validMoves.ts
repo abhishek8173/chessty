@@ -38,7 +38,8 @@ const checkHit = ({positions, activeX, activeY, dx, dy, nx, ny, mx ,my, isWhite}
             }
             else if (dx * dy !== 0 && diagonalKillers.includes(enemyPiece)) {
                 return true;
-            }else return false;
+            }
+            else return false;
         }
         else if(positions[nx][ny]!='-' && isWhite === isPieceWhite(positions[nx][ny]) && (nx === mx && ny === my) && (nx != activeX || ny !== activeY)){
             return false;
@@ -52,7 +53,7 @@ const checkHit = ({positions, activeX, activeY, dx, dy, nx, ny, mx ,my, isWhite}
 
 
 export const SquareTargeted = ({positions, isWhiteTurn, kx, ky}: kingCheckProps): number[][] =>{ //kx, ky of king's position
-    const isKingWhite = !isWhiteTurn;
+    const isKingWhite = !isWhiteTurn; // assumes the square tarketed to be king
     const threatDirections = [];
     if(isKingWhite){
         pawnsAndKnights.pawn.kingWhite.forEach(([dx, dy])=>{
@@ -75,7 +76,7 @@ export const SquareTargeted = ({positions, isWhiteTurn, kx, ky}: kingCheckProps)
     }
     for (const [dx, dy] of kingDirections) {
         let nx = kx + dx, ny = ky + dy;
-        if(checkHit({positions, activeX: -1, activeY: -1, dx, dy, nx, ny, mx: -1, my: -1, isWhite: !isWhiteTurn})) threatDirections.push([dx, dy]);
+        if(checkHit({positions, activeX: -1, activeY: -1, dx, dy, nx, ny, mx: kx, my: ky, isWhite: !isWhiteTurn})) threatDirections.push([dx, dy]);
     }
     return threatDirections;
 }
@@ -88,6 +89,11 @@ const isPiecePinned = ({positions, mx, my, kx, ky, activeX, activeY}: nextMoveCh
     for (let [dx, dy] of directions) {
         let nx = kx + dx, ny = ky + dy;
         if(checkHit({positions, activeX, activeY, dx, dy, nx, ny, mx, my, isWhite})) return true;
+    }
+    // checking for threat from knight
+    for(let [dx, dy] of pawnsAndKnights.knight){
+        let nx = kx+dx, ny = ky+dy;
+        if(isInBounds(nx, ny) && positions[nx][ny].toLocaleLowerCase()=='n' && isWhite !== isPieceWhite(positions[nx][ny])) return true;
     }
     return false;
 };
@@ -191,9 +197,12 @@ export const isCheckMate = ({positions, isWhiteTurn, kx, ky, whiteKing, blackKin
     let nx = kx+dx, ny = ky+dy;
     while(isInBounds(nx, ny)){
         if(Math.abs(nx-kx)<=1 && Math.abs(ny-ky)<=1 && positions[nx][ny]!='-') return true;
+        const pieceType = positions[kx][ky];
+        positions[kx][ky]='-';
         const isBlockable = SquareTargeted({positions, isWhiteTurn: !isWhiteTurn, kx: nx, ky: ny}).length != 0;
+        positions[kx][ky] = pieceType;
         if(isBlockable) return false;
-        if(Math.abs(dx*dy)>1) return true;
+        if(Math.abs(dx*dy)>1 || positions[nx][ny]!='-') return true;
         nx+=dx;
         ny+=dy;
     }

@@ -1,5 +1,6 @@
 import { Image, ImageSourcePropType, LayoutChangeEvent } from "react-native";
 import { GameMachineContext, GameMachineEvents } from "../machines/gameMachine";
+import { StateValue } from "xstate";
 
 export type PieceKey = 'k' | 'q' | 'b' | 'n' | 'r' | 'p' | 'K' | 'Q' | 'B' | 'N' | 'R' | 'P' | '-';
 
@@ -47,12 +48,19 @@ export type PlayerInfoProps = {
     onLayoutChange: (event: LayoutChangeEvent) => void;
     playerNumber: number;
     isPassnPlay: boolean;
-    handleWinner: React.Dispatch<React.SetStateAction<"White" | "Black" | "STALEMATE" | "NONE">>
+    handleWinner: React.Dispatch<React.SetStateAction<"White" | "Black" | "STALEMATE" | "NONE">>;
+    capturedPieces: Map<PieceKey, number>
 }
 
 export type ResignConfirmProps = {
     sendEvent: (event :GameMachineEvents)=>void;
     handleWinner: React.Dispatch<React.SetStateAction<"White" | "Black" | "STALEMATE" | "NONE">>;
+}
+
+export type GameOverPopUpProps = {
+    reason: StateValue,
+    winner: string,
+    onBack: ()=>void
 }
 
 export type findValidMovesProps = {

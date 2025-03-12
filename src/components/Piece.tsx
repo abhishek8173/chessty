@@ -17,7 +17,7 @@ import { Pieces, PieceProps } from '../@types/gamescreenTypes'
 
 
 
-const pieces: Pieces = {
+export const pieces: Pieces = {
   'k': { img: bk, weight: 0 },
   'q': { img: bq, weight: 0 },
   'b': { img: bb, weight: 0 },

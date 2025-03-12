@@ -1,14 +1,14 @@
-import { View, LayoutChangeEvent, Image, Text } from 'react-native'
-import React, { memo, useCallback, useEffect, useState} from 'react'
+import { View, LayoutChangeEvent } from 'react-native'
+import React, { useCallback, useEffect, useState} from 'react'
 import styles from '../utils/styles';
 import GameBoardV2 from '../components/GameBoardV2';
-import { DefaultDps } from '../utils/DefaultDPs';
-import { GameFootProps, GameHeaderProps, PlayerInfoProps, ResignConfirmProps } from '../@types/gamescreenTypes';
 import { useMachine } from '@xstate/react';
 import { gameMachine } from '../machines/gameMachine';
-
-const dp_1 = DefaultDps[Math.floor(Math.random()*DefaultDps.length)];
-const dp_2 = DefaultDps[Math.floor(Math.random()*DefaultDps.length)];
+import GameHeader from '../components/GameHeader';
+import GameFooter from '../components/GameFooter';
+import PlayerInfo from '../components/PlayerInfo';
+import ResignConfirmation from '../components/ResignConfirmation';
+import GameOverPopUp from '../components/GameOverPopUp';
 
 const GameScreen = () => {
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -25,8 +25,11 @@ const GameScreen = () => {
     }, []);
 
     useEffect(()=>{
-        console.log('winner: '+winner);
-    }, [winner]);
+        if(state.matches('checkMate')) setWinner(()=>{
+        return state.context.isWhiteTurn ? 'White' : 'Black';
+    })
+    else if(state.matches('stalemate')) setWinner('STALEMATE');
+    }, [state.value]);
 
     const onChildLayout = (index: number) => (event: LayoutChangeEvent) => {
         const height = event.nativeEvent.layout.height;
@@ -46,86 +49,12 @@ const GameScreen = () => {
     return (
         <View style={styles.screen} onLayout={onScreenLayout}>
             {!state.matches('resigned') && winner!='NONE' && winner!='STALEMATE' && <ResignConfirmation sendEvent={send} handleWinner={setWinner}/>}
+            {(state.matches('checkMate') || state.matches('stalemate') || state.matches('resigned')) && <GameOverPopUp reason={state.value} winner={winner} onBack={()=>{}}/>}
             <GameHeader onLayoutChange={onChildLayout(0)}/>
-            <PlayerOneInfo onLayoutChange={onChildLayout(1)} playerNumber={2} isPassnPlay={isPassnPlay} handleWinner={setWinner}/>
+            <PlayerInfo onLayoutChange={onChildLayout(1)} playerNumber={2} isPassnPlay={isPassnPlay} handleWinner={setWinner} capturedPieces={state.context.capturedWhites}/>
             <GameBoardV2 dimension={boardDimension} sendEvent = {send} stateContext={state.context}/>
-            <PlayerOneInfo onLayoutChange={onChildLayout(2)} playerNumber={1} isPassnPlay={isPassnPlay} handleWinner={setWinner}/>
+            <PlayerInfo onLayoutChange={onChildLayout(2)} playerNumber={1} isPassnPlay={isPassnPlay} handleWinner={setWinner} capturedPieces={state.context.capturedBlacks}/>
             <GameFooter onLayoutChange={onChildLayout(3)}/>
-        </View>
-    )
-}
-
-
-const GameHeader = ({onLayoutChange}: GameHeaderProps) => {
-    return (
-        <View style = {styles.header} onLayout={onLayoutChange}>
-
-        </View>
-    )
-}
-
-const GameFooter = ({onLayoutChange}: GameFootProps) => {
-    return (
-        <View style = {styles.footer} onLayout={onLayoutChange}>
-
-        </View>
-    )
-}
-
-const PlayerOneInfo = memo(({onLayoutChange, playerNumber, isPassnPlay, handleWinner}: PlayerInfoProps) => {
-    const rotation = !isPassnPlay ? '0deg' : playerNumber==1 ? '0deg' : '180deg';
-    const dp = (playerNumber==1) ? dp_1 : dp_2;
-    const handleResign = ()=>{
-        const winner = playerNumber==1 ? 'Black' : 'White'; //winner is opposite of the one who resigned
-        handleWinner(winner);
-    }
-    return(
-        <View style={{...styles.playerInfo, transform: [{ rotate: rotation}]}} onLayout={onLayoutChange}>
-            <View style={{display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 10}}>
-                <View  style={{height: "100%", aspectRatio: 1, borderWidth: 2, borderRadius: '20%', borderColor: '#eeeed2', overflow: 'hidden'}} >
-                    <Image source={dp} style={{width: '100%', height: '100%'}}/>
-                </View>
-                <View>
-                    <Text style={{fontSize: 25, color: '#fff', fontWeight: '700'}}>
-                        Player {playerNumber}
-                    </Text>
-                </View>
-            </View>
-            <View style={{height:'70%', aspectRatio: 2, borderWidth: 2, borderColor: '#eeeed2', borderRadius: 10, display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}} onTouchStart={handleResign}>
-                <Text style={styles.resignText}>RESIGN</Text>
-            </View>
-        </View>
-    )
-})
-
-const ResignConfirmation = ({sendEvent, handleWinner}: ResignConfirmProps) =>{
-    const handleResign = () => {
-        sendEvent({type: 'RESIGN'});
-    }
-    const handleCancel = () => {
-        handleWinner('NONE');
-    }
-    return(
-        <View style={styles.resignConfirmation}>
-            <View style={styles.resignConfirmationPopUp}>
-
-                <Text style={styles.resignConfirmationText}>
-                    {`Are You Sure You Want To\nRESIGN??`}
-                </Text>
-
-                <View style={styles.resignConfirmationCtaContainer}>
-
-                    <View style={styles.resignConfirmationResignCta} onTouchStart={handleResign}>
-                        <Text style={styles.resignText}>RESIGN</Text>
-                    </View>
-
-                    <View style={styles.resignConfirmationCancelCta} onTouchStart={handleCancel}>
-                        <Text style={styles.cancelCta}>CANCEL</Text>
-                    </View>
-
-                </View>
-
-            </View>
         </View>
     )
 }

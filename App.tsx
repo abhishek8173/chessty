@@ -16,12 +16,13 @@ import {
 
 
 import GameScreen from './src/screens/GameScreen';
+import HomeScreen from './src/screens/HomeScreen';
 
 
 function App(): React.JSX.Element {
 
   const backgroundStyle = {
-    backgroundColor: "#ffeedd",
+    backgroundColor: "#404e00",
     flex: 1
   };
 
@@ -29,11 +30,12 @@ function App(): React.JSX.Element {
     <StrictMode>
     <SafeAreaView style={backgroundStyle}>
       <StatusBar
-        barStyle={'dark-content'}
+        barStyle={'light-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
       <View style={styles.app}>
         <GameScreen />
+        {/* <HomeScreen /> */}
       </View>
     </SafeAreaView>
     </StrictMode>
