@@ -19,14 +19,17 @@ const GameBoardV2 = ({dimension, sendEvent, stateContext}: GameBoardProps) =>{
 
         const {positions, validMoves, prevMove,
         active, whiteKing, blackKing, kingCheck,
-        enPassant, isWhiteTurn} = stateContext;
+        enPassant, isWhiteTurn, pawnPromotion} = stateContext;
 
         const row_id = 8-row;
         const col_id = 97+col;
 
         const handleTouch = async () =>{
-            if(active.length==0 && positions[row][col]!='-' as PieceKey && isPieceWhite(positions[row][col]) !== isWhiteTurn) return;
-            if(active.length == 0 && positions[row][col]!='-' as PieceKey || (active.length!=0 && isPieceWhite(positions[row][col]) == isPieceWhite(positions[active[0]][active[1]]) && positions[row][col]!='-')){
+            if(active.length==0 && positions[row][col]!='-' as PieceKey && 
+                isPieceWhite(positions[row][col]) !== isWhiteTurn) return;
+            if(active.length == 0 && positions[row][col]!='-' as PieceKey || 
+                (active.length!=0 && isPieceWhite(positions[row][col]) == isPieceWhite(positions[active[0]][active[1]]) && 
+                positions[row][col]!='-')){
                 sendEvent({type: 'SELECT', data: {row, col}});
             }
             else if (active.length!=0 && !isActive && validMoves.size!=0 && validMoves.has(row+' '+col)){
@@ -35,14 +38,22 @@ const GameBoardV2 = ({dimension, sendEvent, stateContext}: GameBoardProps) =>{
         }
 
         const isActive = active.length!=0 && active[0] === row && active[1]===col;
-        const isPrevMoveTo = prevMove.length==2 && ((prevMove[1][0] === row && prevMove[1][1] === col));
-        const isPrevMoveFrom = (prevMove.length==2 && prevMove[0][0]===row && prevMove[0][1]===col);
-        const isDark = (row + col) % 2 === 1;
-        const isTargetPiece = (validMoves.size!=0 && validMoves.has(row+' '+col) && positions[row][col]!='-' && isPieceWhite(positions[row][col]) !== isWhiteTurn) 
-        || (enPassant.length!=0 && enPassant[0]==row && enPassant[1]==col);
-        const isCheck = (kingCheck && ((isWhiteTurn && row==whiteKing[0] && col==whiteKing[1]) || (!isWhiteTurn && row==blackKing[0] && col==blackKing[1])));
 
-        const bgColor = (isActive) ? '#fdc854' : isCheck ? '#d12f1d' : isTargetPiece ? '#ff6f08' : isPrevMoveTo ? '#5eb5fc' : isPrevMoveFrom? '#8bc9fc' : isDark ? '#769656' : '#eeeed2';
+        const isPrevMoveTo = prevMove.length==2 && ((prevMove[1][0] === row && prevMove[1][1] === col));
+
+        const isPrevMoveFrom = (prevMove.length==2 && prevMove[0][0]===row && prevMove[0][1]===col);
+
+        const isDark = (row + col) % 2 === 1;
+
+        const isTargetPiece = (validMoves.size!=0 && validMoves.has(row+' '+col) && 
+        positions[row][col]!='-' && isPieceWhite(positions[row][col]) !== isWhiteTurn) 
+        || (enPassant.length!=0 && enPassant[0]==row && enPassant[1]==col);
+
+        const isCheck = (kingCheck && ((isWhiteTurn && row==whiteKing[0] && col==whiteKing[1]) || 
+        (!isWhiteTurn && row==blackKing[0] && col==blackKing[1])));
+
+        const bgColor = (isActive) ? '#fdc854' : isCheck ? '#d12f1d' : isTargetPiece ? '#ff6f08' : 
+        isPrevMoveTo ? '#5eb5fc' : isPrevMoveFrom? '#8bc9fc' : isDark ? '#769656' : '#eeeed2';
 
         return(
             <View
@@ -63,7 +74,8 @@ const GameBoardV2 = ({dimension, sendEvent, stateContext}: GameBoardProps) =>{
                     </Text> : null
                 }
 
-                {positions.length!=0 && positions[row][col]!='-' ? <Piece type={positions[row][col]} isPassnPlay={isPassnPlay}/> : null }
+                {positions.length!=0 && positions[row][col]!='-' ? 
+                <Piece type={positions[row][col]} isPassnPlay={isPassnPlay}/> : null }
 
                 {validMoves.size!=0 && validMoves.has(row+' '+col) && !isTargetPiece ? 
                     <View style={{backgroundColor: '#5eff00', 

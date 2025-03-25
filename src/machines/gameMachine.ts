@@ -1,8 +1,7 @@
 import { assign, createMachine } from "xstate";
 import { playMoveSound } from '../utils/sound';
 import findValidMoves, { SquareTargeted, isPieceWhite, isCheckMate } from "../utils/validMoves";
-import { PieceKey } from "../@types/gamescreenTypes";
-import { actionTypes } from "xstate/lib/actions";
+import { PieceKey, PromotionPieces } from "../@types/gamescreenTypes";
 import { MAX_MOVES_WITHOUT_CAPTURE } from "../utils/constants";
 
 enum GameMachineStates {
@@ -10,6 +9,9 @@ enum GameMachineStates {
     IDLE = 'idle',
     CHECK_VALID_MOVES = 'checkValidMoves',
     MAKE_MOVE = 'makeMove',
+    PAWN_PROMOTION_INIT = 'pawnPromotionInit',
+    PROMOTE_PAWN = 'promotePawn',
+    CHECK_CHECKMATE_STALEMATE_TEST = 'checkCheckmateStalemateTest',
     CHECKMATE = 'checkMate',
     RESIGNED = 'resigned',
     STALEMATE = 'stalemate'
@@ -33,28 +35,38 @@ export type GameMachineContext = {
     enPassant: number[],
     file: number,
     rank: number,
-    numberOfMovesSinceLastCapture: number
+    numberOfMovesSinceLastCapture: number,
+    pawnPromotion: number[],
+    promotionPiece: PromotionPieces | '-'
 }
 
 export type GameMachineEvents = {
     type: 'done.invoke.initialize';
     data: {positions: PieceKey[][],  whiteKing: number[], blackKing: number[], isWhiteTurn: boolean, castlingRights: Set<castleDirection>, enPassant: number[]};
-} |
-{
+} | {
     type: 'done.invoke.getValidMoves';
     data: {validMoves: Set<string>, enPassant: number[]};
 } | {
+    type: 'done.invoke.promotePawn';
+    data: {positions: PieceKey[][], pawnPromotion: number[], promotionPiece: PromotionPieces};
+} | {
     type: 'done.invoke.makeMove';
-    data: {positions: PieceKey[][], prevMove: number[][], kingCheck: boolean, isWhiteTurn: boolean, 
-        active: number[], capturedBlacks: Map<PieceKey, number>, capturedWhites: Map<PieceKey, number>,
-        validMoves: Set<string>, enPassant: number[], checkMate: boolean, whiteKing: number[], 
-        blackKing: number[], numberOfMovesSinceLastCapture: number};
+    data: {positions: PieceKey[][], prevMove: number[][], active: number[], 
+        capturedBlacks: Map<PieceKey, number>, capturedWhites: Map<PieceKey, number>,
+        validMoves: Set<string>, enPassant: number[], whiteKing: number[], 
+        blackKing: number[], numberOfMovesSinceLastCapture: number, pawnPromotion: number[]};
+} | {
+    type: 'done.invoke.checkThreatsAndGameContinuationTest';
+    data: {kingCheck: boolean, checkMate: boolean, isWhiteTurn: boolean};
 } | {
     type: 'MOVE';
     data: {row: number, col: number};
 } | {
     type: 'SELECT';
     data : {row: number, col: number};
+} | {
+    type: 'SELECT_PROMOTION';
+    data : {promotionPiece: PromotionPieces};
 } | {
     type: 'RESIGN';
 }
@@ -75,7 +87,9 @@ const defaultGameMachineContext: GameMachineContext = {
     enPassant: [],
     file: -1,
     rank: -1,
-    numberOfMovesSinceLastCapture: 0
+    numberOfMovesSinceLastCapture: 0,
+    pawnPromotion: [],
+    promotionPiece: '-'
 
 }
 
@@ -123,7 +137,7 @@ function boardBuilder(fen: string): boardBuilderReturn {
 
 export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
     {
-        /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOgNwBdd0AbXALzAGIIB7Qs-AN1YGsxOlanUYBtAAwBdRKAAOrWEPYyQAD0QBaAIwlx4gBziALAHYAbPtMAmI2aNGArABoQAT01atV3Va0Oj4gCcJqZaZlqBAL6RLmhYeISkuBA0zADKAKIAMhkAwgAqEtJIIPKKVMol6giO4iQmgQDMXuKNDsb6Lu41JiSNhoaORsF2vtGxGDgExGQpzACyAPIAahlFKmVK+CrVVuI6RvqBhibiZmeBwVZdiFYmB40WjeatJqeP4yBxU4mzqUwAJQyaQAkgBxABy6xKmwq2yqiAiJFs+gcVjMl0CWn0Xis1zctyCJECVgcJj2gXae1O+k+3wSMxwYEwvGWtGS81YXDgLHYAgIPH4JBgFDZdAgnO5sGhcgUWx2iL8JAcgX2ljM5kOjXx3Q0d10zxM2qMbSOzzCdMmDNIGH4kuYbA4Ar4AltYHtMtKcrhCoQhkaJH0NjegTMDn84isjRuCBsOkexy0-WC1i0Jkt8WmNvQdq5Dr5nEFrpz7rzoi0xVl5VwlVA1TDAYaNhNZm1hp1irq2tRZ3JDXE92iMRA+FYEDgKnpWY23pr8LrmiNyMc-gijXXDn0jxjGmagRIZijIQC-bJRgzPxm5Co7MYM+rtbUmlJy-DRjXG63DjMO6j3i8zz2HsQT6G857DlOvzJKk97ygiNQdggnhGCQdxhkaRqruBEyZr8TIsmKHJ5vAMKzo+1RogGaZBHooZ6OEnQEgg2j+MSUZHO+ljhv4tIQVaWYkG69qwT68HDA4B7hPYJrJn20ZMVG+5BK2lg2N+6FWBe1okPhvDzOgFBgCJc6+p4NgHqStHtPsJhbjG6LxrYzyBI4bTYppfG4TMABOcC4FAhAQMZ5EeK+DjPOEWKNAOtjOExjQmiQWjDEaninHi-RDpEQA */
+        /** @xstate-layout N4IgpgJg5mDOIC5QAoC2BDAxgCwJYDswBKAOgNwBdd0AbXALzAGIIB7Qs-AN1YGsxOlanUYBtAAwBdRKAAOrWEPYyQAD0QAmAKwBGHSQDsATgAcRnUYBsGgCwntAGhABPRAYMkbW0wGYT48Q1tGx8bAF8wpzQsPEJSXAgaZgBlAFEAGVSAYQAVCWkkEHlFKmVC9QQNAy0PDR0zIyNxHwMdPydXBBtmkn8vLwNxU3NwyJBonAJiMkTmAFkAeQA1VPyVYqV8FQrbHw0ScR1vPa0Qn0aDDs1bEi0NUICgtpMDOwiojEm4maSmACVUskAJIAcQAcmtChtSltyppBjZelZhkZQt1XldKvUSBpmnojPcdJYfJZxAZ3uNPrFpjgwJheEtaAk5qwuHAWOwBAQePwSDAKIy6BAWWzYJC5ApNttNCZsRpLG0bBpGs1bJiNC9bkZWgSTN4lfUKRNqaQMPwRcw2BxuXwBGawBbxUVJTDpQg9oimsTDgZLHYbI11WZDAYHiYXrLUVojVSpqb0ObWZbOZweXaEw6k6IdAUJSVcGVQBUPSQvT4fX6TAGjJizjjq3qtN5mk2YzE4yRZOgAO74AAKACdWKhWDCgfhKEw0plcgB9Pt-BaLHJAhYQqTrF0F2FFxBmDxKup+0ka8RNoMmHGhkJ6LSqmw6NtfaayIcjihgPs9-Ac63cW2dgO76ft+TrQtubo6EqiJ3oERg2IM5jKloQZGCGYYRhYaJPiaJC0vSWTYHSvAYB+yQULQYCkWAORwBQv5cv+vL4bwOTYAOYDoBQsAAIL4BAILoKgYBZOwVD4AArlx260bAFBgVuhZqJoZL7C8WjnOG9RaCYPiYns4ieL6d6kqERLVDhHYsYRxHUeRlHUbJ9FWoxaZ4UR9JsRxXG8fxgnCaJ+DiVJMJOdmubOvmSkVES4iWKWQR1DUfjaiS+lnuhJIhH0xh6pZ3zWR5JFcWA9lJI5dFMKocklSQ6AAGYfgOyCwUQTDGlZRU2fSdkUeVJVhRuUKKTuymVKpvTVJpsp6rptYtIY8p3E2RI2MS2j5TSXVFb1DkDZV1UUR+dWNWAzWte1sYFdttklWVVH7XJ4WblFo07BN6nTdpc0uIgAaXgYS0WHihyhBEYz4KwEBwCoHVxC9UpwggAC0liYsjOiGeI3Q6LY3iY3FQwmJt8QTlQTKMAjrpIzoxiIhYWh+qejN+Jcv0ILKniNFY2iovK2PE2McPTAkSRUxBSP82h4blrpvhmCE+l7Lc7jane-Plj4JPucRgrMkm8DDa9brIR4eL-QYumkih7PnIZeg2IeD7NIE2Pa-aFri9Ff0aEGWhcxclhNIlRitkLV0vt+g7DqO27jpQXtvW4cUHI8oRNk0Jz6XoAehxqZhB2HHztt8r4xx+X69onkF6PFfriGYJKWAqQe++zGoeNzoc+Lj7juBp2uFbdZF9Q9H5OdXNN+voZgRqcDemG3nTdD4i2WLoCEtHcQyD0VcwlZPu6VF4l6VrquhVBY82esZoR+vBPh7Fr4cl9MHGKFAhAQIfY1VO4JC42WvKZU-M0bs3MKnewrwNIaVPI+F+z5SA1X6h+H+OwBgANDhpVEiFfR6XZnef2FhLAmG9FBbK0ZwZAA */
         initial: GameMachineStates.INITIALIZE,
         context: { ...defaultGameMachineContext },
         states: {
@@ -170,6 +184,53 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     src: 'makeMove',
                     onDone: [
                         {
+                            target: GameMachineStates.PAWN_PROMOTION_INIT,
+                            cond: 'isPawnPromotionPossible',
+                            actions: 'setContext',
+                        },
+                        {
+                            target: GameMachineStates.CHECK_CHECKMATE_STALEMATE_TEST,
+                            actions: 'setContext',
+                        },
+                    ],
+                },
+                // after: {
+                //     500: [
+                //         {
+                //             target: GameMachineStates.CHECKMATE,
+                //             cond: 'isCheckMate',
+                //         },
+                //         {
+                //             target: GameMachineStates.STALEMATE,
+                //             cond: 'isStaleMate',
+                //         },
+                //     ],
+                // },
+            },
+            [GameMachineStates.PAWN_PROMOTION_INIT]: {
+                on: {
+                    SELECT_PROMOTION: {
+                        target: GameMachineStates.PROMOTE_PAWN,
+                        actions: 'setContext',
+                    }
+                }
+            },
+            [GameMachineStates.PROMOTE_PAWN]: {
+                invoke: {
+                    id: 'prmotePawn',
+                    src: 'promotePawn',
+                    onDone: {
+                        target: GameMachineStates.CHECK_CHECKMATE_STALEMATE_TEST,
+                        actions: 'setContext',
+                    }
+                }
+            },
+            [GameMachineStates.CHECK_CHECKMATE_STALEMATE_TEST]: {
+                invoke: {
+                    id: 'checkThreatsAndGameContinuationTest',
+                    src: 'checkThreatsAndGameContinuationTest',
+                    onDone: [
+                        {
                             target: GameMachineStates.IDLE,
                             cond: 'isGameNotOver',
                             actions: 'setContext',
@@ -177,7 +238,8 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                         {
                             actions: 'setContext',
                         },
-                    ],
+                    ]
+
                 },
                 after: {
                     500: [
@@ -190,7 +252,7 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                             cond: 'isStaleMate',
                         },
                     ],
-                },
+                }
             },
             [GameMachineStates.CHECKMATE]: {
                 type: 'final'
@@ -238,6 +300,7 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                 validMoves: Set<string>,
                 enPassant: number[]
             }> => {
+                console.log('validMoves');
                 const {positions, active, prevMove, whiteKing, blackKing, isWhiteTurn, castlingRights} = context;
                 const {isValidAndSafe, enPassant} = findValidMoves({positions, active, prevMove, whiteKing, blackKing, isWhiteTurn, castlingRights});
                 return {
@@ -251,23 +314,26 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
             ): Promise<{
                 positions: PieceKey[][],
                 prevMove: number[][],
-                kingCheck: boolean,
-                isWhiteTurn: boolean,
                 capturedBlacks: Map<PieceKey, number>,
                 capturedWhites: Map<PieceKey, number>,
                 validMoves: Set<String>,
                 active: number[],
-                checkMate: boolean,
                 whiteKing: number[],
                 blackKing: number[],
                 enPassant: number[],
-                numberOfMovesSinceLastCapture: number
+                numberOfMovesSinceLastCapture: number,
+                pawnPromotion: number[]
             }> => {
-                let {positions, prevMove, kingCheck, active, file, rank, whiteKing, blackKing, isWhiteTurn, capturedWhites, capturedBlacks, validMoves, enPassant, castlingRights, numberOfMovesSinceLastCapture} = context;
+                console.log('makeMove');
+                let {positions, prevMove, active, file, rank, whiteKing, blackKing, 
+                    isWhiteTurn, capturedWhites, capturedBlacks, validMoves, enPassant, castlingRights, 
+                    numberOfMovesSinceLastCapture, pawnPromotion} = context;
+                
                 const targetPiece = positions[file][rank];
                 numberOfMovesSinceLastCapture++;
                 const activePiece = positions[active[0]][active[1]];
 
+                // Rmoving castling rights if King is moved
                 if(activePiece=='K'){
                     castlingRights.delete('K');
                     castlingRights.delete('Q');
@@ -276,6 +342,7 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     castlingRights.delete('q');
                 }
 
+                // Removing castling rights for the direction where rook is moved
                 if(activePiece=='R'){
                     if(active[1]==0) castlingRights.delete('Q');
                     else castlingRights.delete('K');
@@ -284,6 +351,7 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     else castlingRights.delete('k');
                 }
 
+                // if moving enPassant
                 if(enPassant.length!=0 && file==enPassant[0] && rank==enPassant[1]){
                     if(isWhiteTurn){
                         const currCount = capturedBlacks.get('p') ?? 0;
@@ -298,6 +366,8 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     }
                     enPassant = [];
                 }
+
+                // capture update
                 if(targetPiece != '-'){
                     if(isPieceWhite(targetPiece)){
                         const currCount = capturedWhites.get(targetPiece) ?? 0;
@@ -309,10 +379,13 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                         numberOfMovesSinceLastCapture=0;
                     }
                 }
+                
+                // moving to new position
                 positions[file][rank] = positions[active[0]][active[1]];
-                positions[active[0]][active[1]] = '-';
-                prevMove = [[active[0], active[1]], [file, rank]];
-                const [kx, ky] = (isWhiteTurn) ? blackKing : whiteKing;
+                positions[active[0]][active[1]] = '-'; //marking old position empty
+                prevMove = [[active[0], active[1]], [file, rank]]; // updating prevMove
+
+                // handling Castle
                 if(positions[file][rank].toLocaleLowerCase()=='k'){
                     if(isWhiteTurn) whiteKing=[file, rank];
                     else blackKing=[file, rank];
@@ -326,27 +399,65 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                         }
                     }
                 }
-                //kingCheck = isKingCheck({positions, kx, ky, activeX: file, activeY: rank, isWhiteTurn, fromMachine: true});
-                const threatsToKing = SquareTargeted({positions, isWhiteTurn, kx, ky});
-                kingCheck = threatsToKing.length !=0;
-                const checkMate = isCheckMate({positions, isWhiteTurn, kx, ky, whiteKing, blackKing, prevMove, threatDirections: threatsToKing, castlingRights});
+
+                // checking for pawn promotion
+                if((file==7 || file==0) && positions[file][rank].toLocaleLowerCase()=='p') pawnPromotion=[file, rank];
+                else pawnPromotion = [];
+
                 validMoves.clear();
                 active = [];
                 playMoveSound();
                 return {
                     positions,
                     prevMove,
-                    kingCheck,
-                    isWhiteTurn: !isWhiteTurn,
                     capturedBlacks,
                     capturedWhites,
                     validMoves,
                     active,
-                    checkMate,
                     blackKing,
                     whiteKing,
                     enPassant,
-                    numberOfMovesSinceLastCapture
+                    numberOfMovesSinceLastCapture,
+                    pawnPromotion
+                }
+            },
+            promotePawn: async (
+                context: GameMachineContext
+            ) : Promise<{
+                positions: PieceKey[][],
+                pawnPromotion: number[],
+                promotionPiece: PromotionPieces
+            }> => {
+                console.log('pawnPromotion');
+                let {positions, pawnPromotion, promotionPiece} = context;
+                positions[pawnPromotion[0]][pawnPromotion[1]] = promotionPiece;
+                promotionPiece='-' as PromotionPieces;
+                pawnPromotion=[];
+                return {
+                    positions,
+                    pawnPromotion,
+                    promotionPiece
+                }
+            },
+            checkThreatsAndGameContinuationTest: async (
+                context: GameMachineContext
+            ) : Promise<{
+                kingCheck: boolean,
+                checkMate: boolean,
+                isWhiteTurn: boolean
+            }> => {
+                console.log('checkThreats');
+                let {kingCheck, checkMate, positions, isWhiteTurn, whiteKing, blackKing, prevMove, castlingRights} = context;
+
+                const [kx, ky] = (isWhiteTurn) ? blackKing : whiteKing;
+                const threatsToKing = SquareTargeted({positions, isWhiteTurn, kx, ky});
+                kingCheck = threatsToKing.length !=0;
+                checkMate = isCheckMate({positions, isWhiteTurn, kx, ky, whiteKing, blackKing, prevMove, threatDirections: threatsToKing, castlingRights});
+
+                return {
+                    kingCheck,
+                    checkMate,
+                    isWhiteTurn: !isWhiteTurn
                 }
             }
         },
@@ -376,6 +487,10 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                         context.active = [event.data.row, event.data.col];
                         return context;
                     }
+                    case 'SELECT_PROMOTION': {
+                        context.promotionPiece = event.data.promotionPiece;
+                        return context;
+                    }
                     case 'done.invoke.getValidMoves': {
                         context.validMoves = event.data.validMoves;
                         context.enPassant = event.data.enPassant;
@@ -389,17 +504,27 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
                     case 'done.invoke.makeMove': {
                         context.positions = event.data.positions;
                         context.prevMove = event.data.prevMove;
-                        context.kingCheck = event.data.kingCheck;
-                        context.isWhiteTurn = event.data.isWhiteTurn;
                         context.capturedBlacks = event.data.capturedBlacks;
                         context.capturedWhites = event.data.capturedWhites;
                         context.validMoves = event.data.validMoves;
                         context.active = event.data.active;
                         context.enPassant = event.data.enPassant;
-                        context.checkMate = event.data.checkMate;
                         context.blackKing = event.data.blackKing;
                         context.whiteKing = event.data.whiteKing;
                         context.numberOfMovesSinceLastCapture = event.data.numberOfMovesSinceLastCapture;
+                        context.pawnPromotion = event.data.pawnPromotion;
+                        return context;
+                    }
+                    case 'done.invoke.promotePawn': {
+                        context.pawnPromotion = event.data.pawnPromotion;
+                        context.positions = event.data.positions;
+                        context.promotionPiece = event.data.promotionPiece;
+                        return context;
+                    }
+                    case 'done.invoke.checkThreatsAndGameContinuationTest': {
+                        context.checkMate = event.data.checkMate;
+                        context.kingCheck = event.data.kingCheck;
+                        context.isWhiteTurn = event.data.isWhiteTurn;
                         return context;
                     }
                 }
@@ -407,15 +532,21 @@ export const gameMachine = createMachine<GameMachineContext, GameMachineEvents>(
             })
         },
         guards: {
-            isCheckMate: (context, _): boolean => {
+            isCheckMate: (context): boolean => {
                 return context.checkMate;
             },
             isStaleMate: (context): boolean =>{
                 return context.numberOfMovesSinceLastCapture >= MAX_MOVES_WITHOUT_CAPTURE;
             },
-            isGameNotOver: (_, event): boolean => {
+            isGameNotOver: (context, event): boolean => {
+                if(event.type === 'done.invoke.checkThreatsAndGameContinuationTest'){
+                    return !(context.numberOfMovesSinceLastCapture >= MAX_MOVES_WITHOUT_CAPTURE) && !event.data.checkMate;
+                }
+                return false;
+            },
+            isPawnPromotionPossible: (_,event): boolean => {
                 if(event.type === 'done.invoke.makeMove'){
-                    return !(event.data.numberOfMovesSinceLastCapture >= MAX_MOVES_WITHOUT_CAPTURE) && !event.data.checkMate;
+                    return event.data.pawnPromotion.length !=0;
                 }
                 return false;
             }

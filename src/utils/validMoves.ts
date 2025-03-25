@@ -86,10 +86,24 @@ const isPiecePinned = ({positions, mx, my, kx, ky, activeX, activeY}: nextMoveCh
     // Simplified check detection (expand with full check validation)
     const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1], [-1, 0], [1, 0], [0, -1], [0, 1]];
     const isWhite = isPieceWhite(positions[activeX][activeY]);
+
     for (let [dx, dy] of directions) {
         let nx = kx + dx, ny = ky + dy;
         if(checkHit({positions, activeX, activeY, dx, dy, nx, ny, mx, my, isWhite})) return true;
     }
+
+    if(isWhite){
+        for(let [dx, dy] of pawnsAndKnights.pawn.kingWhite){
+            let nx = kx+dx, ny= ky+dy;
+            if(isInBounds(nx, ny) && positions[nx][ny]=='p') return true;
+        }
+    }else{
+        for(let [dx, dy] of pawnsAndKnights.pawn.kingBlack){
+            let nx = kx+dx, ny= ky+dy;
+            if(isInBounds(nx, ny) && positions[nx][ny]=='P') return true;
+        }
+    }
+    
     // checking for threat from knight
     for(let [dx, dy] of pawnsAndKnights.knight){
         let nx = kx+dx, ny = ky+dy;
@@ -284,9 +298,10 @@ const findValidMoves = (props: findValidMovesProps): findValidReturn=>{
             positions[activeX][activeY] = pieceType;
             positions[mx][my] = pieceAtmovePos;
         } // not safe if new position open attack on own king     && !isKingThreat({positions, kx: mx, ky: my, activeX, activeY})
-        else if(!isPiecePinned({positions, mx, my, kx, ky, activeX, activeY})) isValidAndSafe.add(s);
+        const pieceCanMove = !isPiecePinned({positions, mx, my, kx, ky, activeX, activeY});
+        if(pieceCanMove) isValidAndSafe.add(s);
     }
-    if(pieceType.toLocaleLowerCase()=='k'){
+    if(pieceType.toLocaleLowerCase()!='k' && pieceType.toLocaleLowerCase()=='k'){
         const [kx, ky] = (isWhiteTurn) ? whiteKing : blackKing;
         validCastles({positions, isWhiteTurn, kx, ky, dy:0, isValidAndSafe, castlingRights});
     }

@@ -1,8 +1,11 @@
-import { Image, ImageSourcePropType, LayoutChangeEvent } from "react-native";
+import { LayoutChangeEvent } from "react-native";
 import { GameMachineContext, GameMachineEvents } from "../machines/gameMachine";
 import { StateValue } from "xstate";
 
 export type PieceKey = 'k' | 'q' | 'b' | 'n' | 'r' | 'p' | 'K' | 'Q' | 'B' | 'N' | 'R' | 'P' | '-';
+
+
+export type PromotionPieces = 'Q' | 'R' | 'B' | 'N' | 'q' | 'r' | 'b' | 'n';
 
 
 export type Piece = {
@@ -42,6 +45,11 @@ export type GameHeaderProps= {
 
 export type GameFootProps= {
     onLayoutChange: (event: LayoutChangeEvent) => void;
+}
+
+export type pawnPromotionProps = {
+    isWhiteTurn: boolean;
+    sendEvent: (event :GameMachineEvents)=>void;
 }
 
 export type PlayerInfoProps = {

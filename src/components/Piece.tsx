@@ -14,6 +14,7 @@ import wn from '../../assets/sprites/wn.png'
 import wr from '../../assets/sprites/wr.png'
 import wp from '../../assets/sprites/wp.png'
 import { Pieces, PieceProps } from '../@types/gamescreenTypes'
+import styles from '../utils/styles'
 
 
 
@@ -43,21 +44,3 @@ const Piece = ({type, isPassnPlay}: PieceProps) => {
 }
 
 export default Piece;
-
-const styles = StyleSheet.create({
-  square: {
-    display: "flex",
-    //backgroundColor: "#774887",
-    width: "100%",
-    height: "100%",
-  },
-  img: {
-    width : "100%",
-    height : "100%",
-  },
-  rowNum: {
-    position: "absolute",
-    marginTop: 5,
-    marginLeft: 5,
-  }
-})

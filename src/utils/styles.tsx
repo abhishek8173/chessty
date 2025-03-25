@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
         display: 'flex', 
         flexDirection: 'column', 
         padding: '5%', 
-        alignContent: 'center', 
+        alignItems: 'center', 
         justifyContent:'space-around'
     },
     resignConfirmationText: {
@@ -127,7 +127,22 @@ const styles = StyleSheet.create({
         fontSize: 18, 
         color: '#76a757', 
         fontWeight: '600'
-    }
+    },
+    square: {
+        display: "flex",
+        //backgroundColor: "#774887",
+        width: "100%",
+        height: "100%",
+      },
+      img: {
+        width : "100%",
+        height : "100%",
+      },
+      rowNum: {
+        position: "absolute",
+        marginTop: 5,
+        marginLeft: 5,
+      }
 })
 
 export default styles;

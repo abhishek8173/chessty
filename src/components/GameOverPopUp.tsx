@@ -10,8 +10,8 @@ const GameOverPopUp = ({reason, winner, onBack}: GameOverPopUpProps)=>{
                 <Text style={{fontSize: 45, textAlign: 'center', fontWeight: 800, color: '#fff'}}>GAME OVER</Text>
                 <Text style={{...styles.resignConfirmationText, fontSize: 30}}>
                     {reason=='stalemate' ? 'Stale Mate' : 
-                    reason=='resigned' ? `Winner: ${winner}\nReason: ${winner=='White'? 'Black' : 'White'} Resigned` : 
-                    `Winner: ${winner}\nReason: Check Mate`} 
+                    reason=='resigned' ? `Winner: ${winner}\n\n${winner=='White'? 'Black' : 'White'} Resigned` : 
+                    `Winner: ${winner}\n\nCheck Mate`} 
                 </Text>
                 <View style={{...styles.resignConfirmationCancelCta, height: "20%", bottom: 0}} onTouchStart={()=>{}}>
                         <Text style={styles.cancelCta}>BACK</Text>
