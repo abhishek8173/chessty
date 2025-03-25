@@ -1,4 +1,4 @@
-#CHESSTY
+# CHESSTY
 
 ## A Chess App
 
